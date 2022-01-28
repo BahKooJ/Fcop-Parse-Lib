@@ -1,0 +1,6 @@
+
+src/Main.kt
+*.xml
+*.iml
+*.class
+*.kotlin_module
