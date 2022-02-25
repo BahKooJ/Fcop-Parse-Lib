@@ -9,23 +9,94 @@ import iff.toBytes16bit
 import iff.toBytes32bit
 import java.io.File
 import java.lang.IndexOutOfBoundsException
+import java.nio.ByteBuffer
+import java.nio.ByteOrder
 
 class FCopCsac(bytes: ByteArray) {
+
+    companion object {
+
+        const val idOffset: Int = 8
+        const val typeOffset: Int = 12
+        const val cordYOffset: Int = 16
+        const val cordXOffset: Int = 24
+        const val unknownDataOffset: Int = 28
+
+        fun createHeavyWeaponResupplyWithHeader(id: Int, positionX: Int, positionY: Int): ByteArray {
+
+            val header = IffFormatting.createBasicHeader(ChunkHeader.Csac,id, 2,144,1807,1775,107)
+
+            val shocChunk = ChunkHeader.SHOC.fourCC + 164.toBytes32bit() + IffFormatData.SHOCDataAfterSize.contents +
+                    ChunkHeader.SDAT.fourCC
+
+            val contents = ChunkHeader.tACT.fourCC + 68.toBytes32bit() + id.toBytes32bit() + 16.toBytes32bit() +
+                    positionY.toBytes32bit() + byteArrayOf(0x00,0x00,0x00,0x00) + positionX.toBytes32bit() +
+                    byteArrayOf(0x81.toByte(), 0x00,0x08,0x00
+                        ,0x00,0x00,0x00,0x00,0x00,0x00,0x05,0x00,0x00,0x00,0x00,0x00,0x00,0x01,0x01,0x00,
+                        0x51,0x00,0x33,0x03,0x33,0x03,0x00,0x08,0x00,0x00,0x63,0x00,0x20,0x00,0x00,0x03,
+                        0xFF.toByte(),0xFF.toByte(),0xCC.toByte(),0xEC.toByte()
+                    ) + ChunkHeader.aRSL.fourCC + 28.toBytes32bit() + id.toBytes32bit() + ChunkHeader.Cobj.fourCC + 24.toBytes32bit() +
+                    ChunkHeader.NULL.fourCC + 0.toBytes32bit() + ChunkHeader.tSAC.fourCC + 48.toBytes32bit() + id.toBytes32bit() +
+                    byteArrayOf(0x90.toByte(),0xE8.toByte(),0x01,0x00,0x00,0x00,0xFF.toByte(),0xFF.toByte(),0x00,0x00,
+                        0x00,0x00,0x00,0x00,0x00,0x00,0x00, 0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,
+                        0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00)
+
+            return header + shocChunk + contents
+        }
+
+    }
+
 
     var sacBytes: ByteArray = bytes
     val allIndexes = createChunkOffsetList()
 
-    var id = getIntAt(8)
+    var id = getIntAt(idOffset)
 
-    var type = getIntAt(12)
+    var type = getIntAt(typeOffset)
 
-    var cordY = getIntAt(16)
+    var cordY = getIntAt(cordYOffset)
 
-    var cordX = getIntAt(24)
+    var cordX = getIntAt(cordXOffset)
 
     var rotation: Int? = getRotationIfPossible()
 
     var objectReferences = discoverObjectReferences()
+
+    var unknownData: List<Int> = getUnknownDataInACT()
+
+    var unknownDataInSac: List<Int> = getUnknownDataInCSac()
+
+    private fun getUnknownDataInACT(): List<Int> {
+
+        val total = mutableListOf<Int>()
+
+        val data = sacBytes.copyOfRange(28,allIndexes[1].index)
+
+        for (index in 0 until data.count() step 2) {
+
+            total += getShortAt(index, data)
+
+        }
+
+        return total
+
+    }
+
+    private fun getUnknownDataInCSac(): List<Int> {
+
+        val total = mutableListOf<Int>()
+
+        val data = sacBytes.copyOfRange(allIndexes[2].index, sacBytes.count())
+
+        for (index in 0 until data.count() step 2) {
+
+            total += getShortAt(index, data)
+
+        }
+
+        return total
+
+    }
 
     private fun getRotationIfPossible(): Int? {
 
@@ -37,10 +108,65 @@ class FCopCsac(bytes: ByteArray) {
 
     }
 
+    fun createTextFile(path: String) {
+
+        var total = ""
+
+        for (chunk in allIndexes) {
+
+            when(chunk.primaryHeader) {
+
+                ChunkHeader.tACT -> {
+                    total += "tACT "
+                    total += "id: $id "
+                    total += "type: $type "
+                    total += "y: $cordY "
+                    total += "x: $cordX "
+
+                    total += "\n"
+
+                    for (short in unknownData) {
+                        total += "$short "
+                    }
+
+                    total += "\n \n"
+
+                }
+                ChunkHeader.aRSL -> {
+                    total += "aRSL \n"
+
+                    for (ref in objectReferences) {
+
+                        total += ref.fourCC + " " + ref.id.toString()
+                        total += "\n"
+
+                    }
+
+                    total += "\n"
+
+                }
+                ChunkHeader.tSAC -> {
+
+                    total += "tSAC \n"
+
+                    for (short in unknownDataInSac) {
+                        total += "$short "
+                    }
+
+                }
+
+            }
+
+        }
+
+        File(path + "sac$id chunklist.txt").writeText(total)
+
+    }
+
     fun readCords() {
 
-        sacBytes = sacBytes.copyOfRange(0,16) + cordY.toBytes32bit() + sacBytes.copyOfRange(20,sacBytes.count())
-        sacBytes = sacBytes.copyOfRange(0,24) + cordX.toBytes32bit() + sacBytes.copyOfRange(28,sacBytes.count())
+        sacBytes = sacBytes.copyOfRange(0,cordYOffset) + cordY.toBytes32bit() + sacBytes.copyOfRange(cordYOffset + 4,sacBytes.count())
+        sacBytes = sacBytes.copyOfRange(0,cordXOffset) + cordX.toBytes32bit() + sacBytes.copyOfRange(cordXOffset + 4,sacBytes.count())
 
         if (rotation != null) {
 
@@ -135,7 +261,7 @@ class FCopCsac(bytes: ByteArray) {
         return result
     }
 
-    private fun getShortAt(inx: Int, data: ByteArray = sacBytes): Int {
+    private fun getUShortAt(inx: Int, data: ByteArray = sacBytes): Int {
 
         val bytes = data.copyOfRange(inx,inx + 2)
 
@@ -146,29 +272,11 @@ class FCopCsac(bytes: ByteArray) {
         return result
     }
 
-    companion object {
+    private fun getShortAt(inx: Int, data: ByteArray = sacBytes): Int {
 
-        fun createHeavyWeaponResupplyWithHeader(id: Int, positionX: Int, positionY: Int): ByteArray {
+        val bytes = data.copyOfRange(inx,inx + 2)
 
-            val header = IffFormatting.createBasicHeader(ChunkHeader.Csac,id, 2,144,1807,1775,107)
-
-            val shocChunk = ChunkHeader.SHOC.fourCC + 164.toBytes32bit() + IffFormatData.SHOCDataAfterSize.contents +
-                    ChunkHeader.SDAT.fourCC
-
-            val contents = ChunkHeader.tACT.fourCC + 68.toBytes32bit() + id.toBytes32bit() + 16.toBytes32bit() +
-                    positionY.toBytes32bit() + byteArrayOf(0x00,0x00,0x00,0x00) + positionX.toBytes32bit() +
-                    byteArrayOf(0x81.toByte(), 0x00,0x08,0x00
-                        ,0x00,0x00,0x00,0x00,0x00,0x00,0x05,0x00,0x00,0x00,0x00,0x00,0x00,0x01,0x01,0x00,
-                        0x51,0x00,0x33,0x03,0x33,0x03,0x00,0x08,0x00,0x00,0x63,0x00,0x20,0x00,0x00,0x03,
-                        0xFF.toByte(),0xFF.toByte(),0xCC.toByte(),0xEC.toByte()
-                    ) + ChunkHeader.aRSL.fourCC + 28.toBytes32bit() + id.toBytes32bit() + ChunkHeader.Cobj.fourCC + 24.toBytes32bit() +
-                    ChunkHeader.NULL.fourCC + 0.toBytes32bit() + ChunkHeader.tSAC.fourCC + 48.toBytes32bit() + id.toBytes32bit() +
-                    byteArrayOf(0x90.toByte(),0xE8.toByte(),0x01,0x00,0x00,0x00,0xFF.toByte(),0xFF.toByte(),0x00,0x00,
-                        0x00,0x00,0x00,0x00,0x00,0x00,0x00, 0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,
-                        0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00)
-
-            return header + shocChunk + contents
-        }
+        return ByteBuffer.wrap(bytes).order(ByteOrder.LITTLE_ENDIAN).asShortBuffer()[0].toInt()
 
     }
 
