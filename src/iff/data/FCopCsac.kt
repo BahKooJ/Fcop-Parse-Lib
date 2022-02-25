@@ -1,24 +1,18 @@
 package iff.data
 
+import iff.IffChunkHeader
 import iff.NoGivenDataException
 import iff.chunk.ChunkHeader
 import iff.chunk.IffFormatData
 import iff.chunk.IffFormatting
+import iff.toBytes16bit
 import iff.toBytes32bit
 import java.io.File
 import java.lang.IndexOutOfBoundsException
 
-//FIXME OLD BAD CODE
-class FCopCsac(sacFileName: String? = null, sacBinaryData: ByteArray? = null) {
+class FCopCsac(bytes: ByteArray) {
 
-    init {
-        if (sacBinaryData == null && sacFileName == null){
-            throw NoGivenDataException("Both constructors are null and have no data to read. Please give either a file name, or a byte array")
-        }
-    }
-
-    private val sacFile: File? = if (sacFileName != null) { File(sacFileName) } else { null }
-    val sacBytes: ByteArray = sacBinaryData ?: sacFile!!.readBytes()
+    var sacBytes: ByteArray = bytes
     val allIndexes = createChunkOffsetList()
 
     var id = getIntAt(8)
@@ -29,38 +23,69 @@ class FCopCsac(sacFileName: String? = null, sacBinaryData: ByteArray? = null) {
 
     var cordX = getIntAt(24)
 
+    var rotation: Int? = getRotationIfPossible()
+
     var objectReferences = discoverObjectReferences()
 
-    private fun discoverObjectReferences(): List<Map<Int, Pair<String, Int>>> {
+    private fun getRotationIfPossible(): Int? {
 
-        val total = mutableListOf<Map<Int, Pair<String, Int>>>()
+        return when(type) {
+            8 -> getShortAt(64)
+            36 -> getShortAt(64)
+            else -> null
+        }
+
+    }
+
+    fun readCords() {
+
+        sacBytes = sacBytes.copyOfRange(0,16) + cordY.toBytes32bit() + sacBytes.copyOfRange(20,sacBytes.count())
+        sacBytes = sacBytes.copyOfRange(0,24) + cordX.toBytes32bit() + sacBytes.copyOfRange(28,sacBytes.count())
+
+        if (rotation != null) {
+
+            sacBytes = sacBytes.copyOfRange(0,64) + rotation!!.toShort().toBytes16bit() + sacBytes.copyOfRange(66,sacBytes.count())
+            sacBytes = sacBytes.copyOfRange(0,78) + rotation!!.toShort().toBytes16bit() + sacBytes.copyOfRange(80,sacBytes.count())
+
+        }
+
+    }
+
+    private fun discoverObjectReferences(): List<ActReference> {
+
+        val total = mutableListOf<ActReference>()
 
         var objectAmount: Int
         for (chunk in allIndexes){
 
-            if (chunk.value[0] == "aRSL") {
-                objectAmount = ((chunk.value[1] as Int) - 12) / 8
+            if (chunk.primaryHeader == ChunkHeader.aRSL) {
+
+                // Each object reference is 8 bytes long (fourCC and then a number). It subs the header size which is 12
+                objectAmount = (chunk.chunkSize - 12) / 8
 
                 for (i in 0 until objectAmount) {
-                    val index = chunk.key + (12 + (i * 8))
-                    total.add(mapOf(Pair(
-                        index,
-                        Pair(sacBytes.copyOfRange(index, index + 4).decodeToString().reversed(),
-                            getIntAt(index + 4)
-                        )
-                    )))
+
+                    val index = chunk.index + (12 + (i * 8))
+
+                    total.add(
+                        ActReference(sacBytes.copyOfRange(index, index + 4).decodeToString().reversed(),getIntAt(index + 4))
+                    )
+
                 }
 
             }
 
         }
+
         return total
+
     }
 
-    private fun createChunkOffsetList(): Map<Int, Array<Any>> {
+    private fun createChunkOffsetList(): List<IffChunkHeader> {
+
+        val total = mutableListOf<IffChunkHeader>()
 
         val totalIndexes = mutableListOf<Int>()
-        val finalMap: MutableMap<Int, Array<Any>> = mutableMapOf()
 
         totalIndexes += createChunkOffsetList(ChunkHeader.tACT).toMutableList()
         totalIndexes += createChunkOffsetList(ChunkHeader.aRSL).toMutableList()
@@ -68,16 +93,18 @@ class FCopCsac(sacFileName: String? = null, sacBinaryData: ByteArray? = null) {
 
         totalIndexes.sort()
 
-        for (i in totalIndexes) {
+        for ((chunkIndex, i) in totalIndexes.withIndex()) {
 
-            finalMap[i] = arrayOf(
-                sacBytes.copyOfRange(i, i + 4).decodeToString().reversed(),
-                getIntAt(i + 4)
+            total += IffChunkHeader(
+                chunkIndex = chunkIndex,
+                index = i,
+                primaryHeader = ChunkHeader.valueOf(sacBytes.copyOfRange(i, i + 4).decodeToString().reversed()),
+                chunkSize = getIntAt(i + 4)
             )
 
         }
 
-        return finalMap
+        return total
     }
 
     private fun createChunkOffsetList(id: ChunkHeader, data: ByteArray = sacBytes): Array<Int> {
@@ -108,14 +135,15 @@ class FCopCsac(sacFileName: String? = null, sacBinaryData: ByteArray? = null) {
         return result
     }
 
-    fun getObject(): String{
+    private fun getShortAt(inx: Int, data: ByteArray = sacBytes): Int {
 
-        return when(type){
-//            8 -> "Base Turret"
-//            9 -> "Flying Fortress"
-//            36 -> "Turret"
-            else -> type.toString()
+        val bytes = data.copyOfRange(inx,inx + 2)
+
+        var result = 0
+        for (i in bytes.indices) {
+            result = result or (bytes[i].toInt() and 0xFF shl 8 * i)
         }
+        return result
     }
 
     companion object {
@@ -145,3 +173,8 @@ class FCopCsac(sacFileName: String? = null, sacBinaryData: ByteArray? = null) {
     }
 
 }
+
+data class ActReference(
+    val fourCC: String,
+    val id: Int
+)
