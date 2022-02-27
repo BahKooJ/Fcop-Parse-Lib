@@ -13,6 +13,8 @@ class FCopCtil(tileBinaryData: ByteArray, val id: Int) {
 
     companion object {
 
+        const val ctilSizeCords = 131072.0
+
         const val textureCordAmountOffset: Int = 10
         const val heightMapOffset: Int = 12
         const val heightMapEndingOffset: Int = 879
