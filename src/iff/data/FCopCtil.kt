@@ -1,7 +1,6 @@
 package iff.data
 
 import iff.InvalidFileSizeException
-import iff.chunk.ChunkHeader
 import iff.toBytes16bit
 import iff.toBytes32bit
 import java.io.File
@@ -9,7 +8,7 @@ import java.io.File
 /**
  * Very early state, do not use unless you know what you're doing
  */
-class FCopCtil(tileBinaryData: ByteArray, val id: Int) {
+class FCopCtil(bytes: ByteArray, id: Int): FCopData(bytes, id) {
 
     companion object {
 
@@ -28,25 +27,23 @@ class FCopCtil(tileBinaryData: ByteArray, val id: Int) {
         const val textureOffsetsOffset: Int = 2512  //todo offset is NOT constant, for prototyping!
     }
 
-    var tileBytes: ByteArray = tileBinaryData
-
     var unknownNumber: Short = getShortAt(8).toShort()
     var textureCordAmount = getShortAt(textureCordAmountOffset)
-    var heightMapPoints = getHeightPoints()
-    var textureCoordinates = getTextureCord()
-    var declaredTiles = getTileDeclaration()
+    var heightMapPoints = parseHeightPoints()
+    var textureCoordinates = parseTextureCord()
+    var declaredTiles = parseTileDeclaration()
 
-    var renderDistanceData: ByteArray = getRenderDistance()
-    var thirdSectionData: ByteArray = getThirdSection()
+    var renderDistanceData: ByteArray = parseRenderDistance()
+    var thirdSectionData: ByteArray = parseThirdSection()
 
-    var sortedDeclaredTiles = getSortedTiles()
+    var sortedDeclaredTiles = sortedTiles()
 
     fun addTexture(texture: TextureCoordinate) {
         textureCoordinates.add(texture)
         textureCordAmount += 4
     }
 
-    private fun getSortedTiles(): MutableList<CtilTile> {
+    private fun sortedTiles(): MutableList<CtilTile> {
 
         val total = mutableListOf<CtilTile>()
 
@@ -89,11 +86,11 @@ class FCopCtil(tileBinaryData: ByteArray, val id: Int) {
     }
 
     // -Reading data-
-    private fun getHeightPoints(): Array<CtilPoint> {
+    private fun parseHeightPoints(): Array<CtilPoint> {
 
         val content = mutableListOf<CtilPoint>()
 
-        val map = tileBytes.copyOfRange(heightMapOffset,heightMapEndingOffset)
+        val map = bytes.copyOfRange(heightMapOffset,heightMapEndingOffset)
 
         var index = 0
         var x = 0
@@ -134,15 +131,15 @@ class FCopCtil(tileBinaryData: ByteArray, val id: Int) {
         return content.toTypedArray()
     }
 
-    private fun getRenderDistance(): ByteArray {
-        return tileBytes.copyOfRange(renderDistanceOffset, renderDistanceEndingOffset)
+    private fun parseRenderDistance(): ByteArray {
+        return bytes.copyOfRange(renderDistanceOffset, renderDistanceEndingOffset)
     }
 
-    private fun getThirdSection(): ByteArray {
-        return tileBytes.copyOfRange(thirdSectionOffset, thirdSectionEndingOffset)
+    private fun parseThirdSection(): ByteArray {
+        return bytes.copyOfRange(thirdSectionOffset, thirdSectionEndingOffset)
     }
 
-    private fun getTextureCord(): MutableList<TextureCoordinate> {
+    private fun parseTextureCord(): MutableList<TextureCoordinate> {
 
         val total = mutableListOf<TextureCoordinate>()
 
@@ -150,7 +147,7 @@ class FCopCtil(tileBinaryData: ByteArray, val id: Int) {
 
         val textureOffsets = mutableListOf<Int>()
 
-        for (offset in textureOffsetsOffset..tileBytes.count() step 2) {
+        for (offset in textureOffsetsOffset..bytes.count() step 2) {
             textureOffsets.add(getShortAt(offset))
 
             if (textureOffsets.count() == 4) {
@@ -168,7 +165,7 @@ class FCopCtil(tileBinaryData: ByteArray, val id: Int) {
 
     }
 
-    private fun getTileDeclaration(): MutableList<CtilTile> {
+    private fun parseTileDeclaration(): MutableList<CtilTile> {
 
         val total = mutableListOf<CtilTile>()
 
@@ -195,14 +192,14 @@ class FCopCtil(tileBinaryData: ByteArray, val id: Int) {
 
         unknownNumber = getShortAt(8).toShort()
         textureCordAmount = getShortAt(textureCordAmountOffset)
-        heightMapPoints = getHeightPoints()
-        textureCoordinates = getTextureCord()
-        declaredTiles = getTileDeclaration()
+        heightMapPoints = parseHeightPoints()
+        textureCoordinates = parseTextureCord()
+        declaredTiles = parseTileDeclaration()
 
-        renderDistanceData = getRenderDistance()
-        thirdSectionData = getThirdSection()
+        renderDistanceData = parseRenderDistance()
+        thirdSectionData = parseThirdSection()
 
-        sortedDeclaredTiles = getSortedTiles()
+        sortedDeclaredTiles = sortedTiles()
 
     }
 
@@ -248,15 +245,13 @@ class FCopCtil(tileBinaryData: ByteArray, val id: Int) {
         //TODO This is data for where textures are, literal for prototyping!
         total += listOf(0x74, 0x26, 0x00, 0x00)
 
-        tileBytes = total.toByteArray()
+        bytes = total.toByteArray()
 
 //        if (tileBytes.count() != 2524) {
 //            error("size is wrong")
 //        }
 
         changeSize()
-
-        File("output/testtile").writeBytes(tileBytes)
 
         reInit()
 
@@ -271,7 +266,7 @@ class FCopCtil(tileBinaryData: ByteArray, val id: Int) {
         }
 
 
-        tileBytes = tileBytes.copyOfRange(0,heightMapOffset) + total + tileBytes.copyOfRange(heightMapEndingOffset,tileBytes.count())
+        bytes = bytes.copyOfRange(0,heightMapOffset) + total + bytes.copyOfRange(heightMapEndingOffset,bytes.count())
 
     }
 
@@ -281,12 +276,12 @@ class FCopCtil(tileBinaryData: ByteArray, val id: Int) {
             throw InvalidFileSizeException("Must be 90 bytes long")
         }
 
-        tileBytes = tileBytes.copyOfRange(0,renderDistanceOffset) + data + tileBytes.copyOfRange(renderDistanceEndingOffset, tileBytes.count())
+        bytes = bytes.copyOfRange(0,renderDistanceOffset) + data + bytes.copyOfRange(renderDistanceEndingOffset, bytes.count())
 
     }
 
     private fun changeSize() {
-        tileBytes = tileBytes.copyOfRange(0,4) + tileBytes.count().toBytes32bit() + tileBytes.copyOfRange(8,tileBytes.count())
+        bytes = bytes.copyOfRange(0,4) + bytes.count().toBytes32bit() + bytes.copyOfRange(8,bytes.count())
     }
 
     // -TXT file methods-
@@ -295,7 +290,7 @@ class FCopCtil(tileBinaryData: ByteArray, val id: Int) {
 
         var total = ""
 
-        val randomShiz = tileBytes.copyOfRange(renderDistanceOffset, tileBytes.count())
+        val randomShiz = bytes.copyOfRange(renderDistanceOffset, bytes.count())
 
         for (i in 0 until (randomShiz.count() / 2)) {
             total += getShortAt((i * 2) + renderDistanceOffset)
@@ -337,7 +332,7 @@ class FCopCtil(tileBinaryData: ByteArray, val id: Int) {
 
         changeSize()
 
-        return tileBytes.copyOfRange(0,880) + data.toByteArray()
+        return bytes.copyOfRange(0,880) + data.toByteArray()
 
     }
 
@@ -373,20 +368,8 @@ class FCopCtil(tileBinaryData: ByteArray, val id: Int) {
 
         }
 
-        return tileBytes.copyOfRange(0,12) + data.toByteArray() + tileBytes.copyOfRange(879,tileBytes.count())
+        return bytes.copyOfRange(0,12) + data.toByteArray() + bytes.copyOfRange(879,bytes.count())
 
-    }
-
-    // -Utils-
-    private fun getShortAt(inx: Int, data: ByteArray = tileBytes): Int {
-
-        val bytes = data.copyOfRange(inx,inx + 2)
-
-        var result = 0
-        for (i in bytes.indices) {
-            result = result or (bytes[i].toInt() and 0xFF shl 8 * i)
-        }
-        return result
     }
 
     inner class CtilTile(

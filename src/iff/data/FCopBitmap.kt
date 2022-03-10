@@ -9,7 +9,7 @@ import java.io.FileNotFoundException
 /**
  * Object for working with Future Cop's Cbmp files
  */
-class FCopBitmap {
+class FCopBitmap(bytes: ByteArray, id: Int): FCopData(bytes, id) {
 
     companion object {
 
@@ -50,19 +50,9 @@ class FCopBitmap {
     }
 
     /**
-     * ID of the Cbmp
-     */
-    val id: Int
-
-    /**
      * All sub chunk offsets
      */
     val allIndexes: Array<IffChunkHeader>
-
-    /**
-     * The contents of a Cbmp
-     */
-    var bitmapBytes: ByteArray
 
     /**
      * The raw image data, without the bitmap header, this is very useful for grabbing texture offsets
@@ -74,11 +64,7 @@ class FCopBitmap {
      */
     var formattedImage: ByteArray
 
-    constructor(data: ByteArray, id: Int) {
-
-        bitmapBytes = data
-
-        this.id = id
+    init {
 
         allIndexes = createAllChunkOffsetList()
 
@@ -87,18 +73,6 @@ class FCopBitmap {
 
     }
 
-    constructor(file: File, id: Int) {
-
-        bitmapBytes = file.readBytes()
-
-        this.id = id
-
-        allIndexes = createAllChunkOffsetList()
-
-        unformattedImage = extractUnformattedBitmaps()
-        formattedImage = formatImage()
-
-    }
 
     fun writeToFile(path: String) {
 
@@ -112,7 +86,7 @@ class FCopBitmap {
 
         for (chunk in allIndexes){
             if (chunk.primaryHeader == ChunkHeader.PX16){
-                contents = bitmapBytes.copyOfRange(chunk.index + 8, chunk.indexAfterSize)
+                contents = bytes.copyOfRange(chunk.index + 8, chunk.indexAfterSize)
                 break
             }
         }
@@ -143,46 +117,32 @@ class FCopBitmap {
 
         for (chunk in allIndexes){
             if (chunk.primaryHeader == ChunkHeader.PX16) {
-                content += bitmapBytes.copyOfRange(0, chunk.index).toMutableList()
-                content += bitmapBytes.copyOfRange(chunk.index, chunk.index + 8).toMutableList()
+                content += bytes.copyOfRange(0, chunk.index).toMutableList()
+                content += bytes.copyOfRange(chunk.index, chunk.index + 8).toMutableList()
                 content += data.toMutableList()
             }
             if (chunk.primaryHeader == ChunkHeader.PLUT) {
-                content += bitmapBytes.copyOfRange(chunk.index, chunk.indexAfterSize).toMutableList()
+                content += bytes.copyOfRange(chunk.index, chunk.indexAfterSize).toMutableList()
             }
         }
 
-        if (bitmapBytes.count() != content.count()){
+        if (bytes.count() != content.count()){
             throw InvalidFileSizeException("size does not match original")
         }
 
         return content.toByteArray()
     }
 
-    private fun createChunkOffsetList(id: ChunkHeader, data: ByteArray = bitmapBytes): Array<Int> {
-
-        val index: MutableList<Int> = mutableListOf()
-
-        for ((i, byte) in data.withIndex()){
-            if (byte == id.fourCC[0]){
-                if (data.copyOfRange(i,i+4).contentEquals(id.fourCC)){
-                    index.add(i)
-                }
-            }
-
-        }
-        return index.toTypedArray()
-    }
 
     private fun createAllChunkOffsetList(): Array<IffChunkHeader> {
 
         val totalIndexes = mutableListOf<Int>()
         val total = mutableListOf<IffChunkHeader>()
 
-        totalIndexes += createChunkOffsetList(ChunkHeader.LCCB).toMutableList()
-        totalIndexes += createChunkOffsetList(ChunkHeader.LkUp).toMutableList()
-        totalIndexes += createChunkOffsetList(ChunkHeader.PX16).toMutableList()
-        totalIndexes += createChunkOffsetList(ChunkHeader.PLUT).toMutableList()
+        totalIndexes += IffFile.createChunkOffsetList(ChunkHeader.LCCB, bytes).toMutableList()
+        totalIndexes += IffFile.createChunkOffsetList(ChunkHeader.LkUp, bytes).toMutableList()
+        totalIndexes += IffFile.createChunkOffsetList(ChunkHeader.PX16, bytes).toMutableList()
+        totalIndexes += IffFile.createChunkOffsetList(ChunkHeader.PLUT, bytes).toMutableList()
 
         if (totalIndexes.isEmpty()){
             throw error("This file is not a Cbmp")
@@ -196,7 +156,7 @@ class FCopBitmap {
                 IffChunkHeader(
                     chunkIndex = index,
                     index = i,
-                    primaryHeader = ChunkHeader.valueOf(bitmapBytes.copyOfRange(i,i + 4).decodeToString().reversed()),
+                    primaryHeader = ChunkHeader.valueOf(bytes.copyOfRange(i,i + 4).decodeToString().reversed()),
                     chunkSize = getIntAt(i + 4)
                 )
             )
@@ -204,17 +164,6 @@ class FCopBitmap {
         }
 
         return total.toTypedArray()
-    }
-
-    private fun getIntAt(inx: Int, data: ByteArray = bitmapBytes): Int {
-
-        val bytes = data.copyOfRange(inx,inx + 4)
-
-        var result = 0
-        for (i in bytes.indices) {
-            result = result or (bytes[i].toInt() and 0xFF shl 8 * i)
-        }
-        return result
     }
 
 }

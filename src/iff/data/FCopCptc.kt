@@ -1,21 +1,9 @@
 package iff.data
 
-import iff.NoGivenDataException
 import iff.toBytes32bit
 import java.io.File
-import java.io.FileNotFoundException
 
-//FIXME OLD BAD CODE
-class FCopCptc(cptcFileName: String? = null, cptcBinaryData: ByteArray? = null) {
-
-    init {
-        if (cptcBinaryData == null && cptcFileName == null){
-            throw NoGivenDataException("Both constructors are null and have no data to read. Please give either a file name, or a byte array")
-        }
-    }
-
-    private val cptcFile: File? = if (cptcFileName != null) { File(cptcFileName) } else { null }
-    var cptcBytes: ByteArray = cptcBinaryData ?: cptcFile!!.readBytes()
+class FCopCptc(bytes: ByteArray, id: Int): FCopData(bytes, id) {
 
     val width = getIntAt(16)
     val height = getIntAt(20)
@@ -26,15 +14,7 @@ class FCopCptc(cptcFileName: String? = null, cptcBinaryData: ByteArray? = null) 
 
     fun createLayoutTextList() {
 
-        val file: File = if (cptcFile != null){
-            File(cptcFile.path + "layoutList.txt")
-        } else {
-            try {
-                File("output/layoutList.text")
-            } catch (e: FileNotFoundException) {
-                File("layoutList.text")
-            }
-        }
+        val file = File("")
 
         var total:String = ""
 
@@ -75,11 +55,11 @@ class FCopCptc(cptcFileName: String? = null, cptcBinaryData: ByteArray? = null) 
 
         }
 
-        cptcBytes = cptcBytes.copyOfRange(0,16) +
+        bytes = bytes.copyOfRange(0,16) +
                 layout.values.first().count().toBytes32bit() +
-                layout.count().toBytes32bit() + cptcBytes.copyOfRange(24,48) + total
+                layout.count().toBytes32bit() + bytes.copyOfRange(24,48) + total
 
-        cptcBytes = cptcBytes.copyOfRange(0,4) + cptcBytes.count().toBytes32bit() + cptcBytes.copyOfRange(8,cptcBytes.count())
+        bytes = bytes.copyOfRange(0,4) + bytes.count().toBytes32bit() + bytes.copyOfRange(8,bytes.count())
 
     }
 
@@ -89,7 +69,7 @@ class FCopCptc(cptcFileName: String? = null, cptcBinaryData: ByteArray? = null) 
 
         val offsetStart = 48
 
-        val data = (cptcBytes.count() - offsetStart) / 4
+        val data = (bytes.count() - offsetStart) / 4
 
         var widthTiles = mutableListOf<Int>()
         var widthPosition = 1
@@ -115,14 +95,4 @@ class FCopCptc(cptcFileName: String? = null, cptcBinaryData: ByteArray? = null) 
         return total
     }
 
-    private fun getIntAt(inx: Int, data: ByteArray = cptcBytes): Int {
-
-        val bytes = data.copyOfRange(inx,inx + 4)
-
-        var result = 0
-        for (i in bytes.indices) {
-            result = result or (bytes[i].toInt() and 0xFF shl 8 * i)
-        }
-        return result
-    }
 }

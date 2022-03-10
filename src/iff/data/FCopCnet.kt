@@ -6,7 +6,7 @@ import java.nio.ByteBuffer
 import java.nio.ByteOrder.LITTLE_ENDIAN
 
 
-class FCopCnet(var bytes: ByteArray) {
+class FCopCnet(bytes: ByteArray, id: Int): FCopData(bytes, id) {
 
     companion object {
         const val numberOfNodesOffset: Int = 14
@@ -103,36 +103,6 @@ class FCopCnet(var bytes: ByteArray) {
 
         return total
 
-    }
-
-    private fun getIntAt(inx: Int, data: ByteArray = bytes): Int {
-
-        val bytes = data.copyOfRange(inx,inx + 4)
-
-        var result = 0
-        for (i in bytes.indices) {
-            result = result or (bytes[i].toInt() and 0xFF shl 8 * i)
-        }
-        return result
-    }
-
-    private fun getShortAt(inx: Int, data: ByteArray = bytes): Int {
-
-        val bytes = data.copyOfRange(inx,inx + 2)
-
-        return ByteBuffer.wrap(bytes).order(LITTLE_ENDIAN).asShortBuffer()[0].toInt()
-
-    }
-
-    private fun getUShortAt(inx: Int, data: ByteArray = bytes): Int {
-
-        val bytes = data.copyOfRange(inx,inx + 2)
-
-        var result = 0
-        for (i in bytes.indices) {
-            result = result or (bytes[i].toInt() and 0xFF shl 8 * i)
-        }
-        return result
     }
 
 }

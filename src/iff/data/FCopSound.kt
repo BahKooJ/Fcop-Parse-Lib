@@ -10,13 +10,11 @@ import java.io.File
 /**
  * Object for working with Future Cop's sound files
  */
-class FCopSound(soundBinaryData: ByteArray, soundFileName: String) {
+class FCopSound(bytes: ByteArray, val soundFileName: String): FCopData(bytes, -1) {
 
     companion object {
         const val sndsSampleRate = 22050
     }
-
-    val soundBytes: ByteArray = soundBinaryData
 
     /**
      * Formats the raw sound data to a wav file
@@ -25,14 +23,14 @@ class FCopSound(soundBinaryData: ByteArray, soundFileName: String) {
      */
     fun formatFileAsBytes(): ByteArray{
 
-        if (soundBytes.copyOfRange(0,4).contentEquals(ChunkHeader.RIFF.fourCC)){
+        if (bytes.copyOfRange(0,4).contentEquals(ChunkHeader.RIFF.fourCC)){
             throw InvalidFileFormatException("this file is already formatted")
         }
 
         val sampleRate: Int = sndsSampleRate
 
         val bitsPerSample: Short = 8
-        val totalSize: Int = soundBytes.count() + 40
+        val totalSize: Int = bytes.count() + 40
         val subChunkSize: Int = 16
         val audioFormat: Short = 1
         val channels: Short = 1
@@ -54,7 +52,7 @@ class FCopSound(soundBinaryData: ByteArray, soundFileName: String) {
         contents += (bitsPerSample).toBytes16bit().toMutableList()
         contents += FileFormatData.Wavedata.contents.toMutableList()
 
-        return contents.toByteArray() + soundBytes
+        return contents.toByteArray() + bytes
     }
 
     /**
@@ -63,11 +61,11 @@ class FCopSound(soundBinaryData: ByteArray, soundFileName: String) {
      * @throws[InvalidFileFormatException] If the file is not formatted or is not a wav file
      */
     fun removeFormattingAsBytes(): ByteArray{
-        if (!soundBytes.copyOfRange(0,4).contentEquals(ChunkHeader.RIFF.fourCC)){
+        if (!bytes.copyOfRange(0,4).contentEquals(ChunkHeader.RIFF.fourCC)){
             throw InvalidFileFormatException("this file is not formatted")
         }
 
-        return soundBytes.copyOfRange(40,soundBytes.count())
+        return bytes.copyOfRange(40,bytes.count())
     }
 
 }

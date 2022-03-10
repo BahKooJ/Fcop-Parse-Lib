@@ -6,7 +6,7 @@ import iff.chunk.ChunkHeader
 import java.io.File
 
 
-class FCopCfun(val bytes: ByteArray) {
+class FCopCfun(bytes: ByteArray, id: Int): FCopData(bytes, id) {
 
     val allIndexes = createDataList()
 
@@ -95,17 +95,6 @@ class FCopCfun(val bytes: ByteArray) {
         }
 
         return total
-    }
-
-    private fun getIntAt(inx: Int, data: ByteArray = bytes): Int {
-
-        val bytes = data.copyOfRange(inx,inx + 4)
-
-        var result = 0
-        for (i in bytes.indices) {
-            result = result or (bytes[i].toInt() and 0xFF shl 8 * i)
-        }
-        return result
     }
 
 

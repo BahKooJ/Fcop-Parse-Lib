@@ -12,7 +12,7 @@ import java.lang.IndexOutOfBoundsException
 import java.nio.ByteBuffer
 import java.nio.ByteOrder
 
-class FCopCact(bytes: ByteArray) {
+class FCopCact(bytes: ByteArray): FCopData(bytes, -1) {
 
     companion object {
 
@@ -47,12 +47,13 @@ class FCopCact(bytes: ByteArray) {
     }
 
 
-    var actBytes: ByteArray = bytes
     val allIndexes = createChunkOffsetList()
 
     var isCSac = findIfCSac()
 
-    var id = getIntAt(idOffset)
+    init {
+        id = getIntAt(idOffset)
+    }
 
     var type = getIntAt(typeOffset)
 
@@ -78,7 +79,7 @@ class FCopCact(bytes: ByteArray) {
 
         val total = mutableListOf<Int>()
 
-        val data = actBytes.copyOfRange(unknownDataOffset,allIndexes[1].index)
+        val data = bytes.copyOfRange(unknownDataOffset,allIndexes[1].index)
 
         for (index in 0 until data.count() step 2) {
 
@@ -98,7 +99,7 @@ class FCopCact(bytes: ByteArray) {
 
         val total = mutableListOf<Int>()
 
-        val data = actBytes.copyOfRange(allIndexes[2].index, actBytes.count())
+        val data = bytes.copyOfRange(allIndexes[2].index, bytes.count())
 
         for (index in 0 until data.count() step 2) {
 
@@ -178,18 +179,18 @@ class FCopCact(bytes: ByteArray) {
 
     fun readCords() {
 
-        actBytes = actBytes.copyOfRange(0,cordYOffset) + cordY.toBytes32bit() + actBytes.copyOfRange(cordYOffset + 4,actBytes.count())
-        actBytes = actBytes.copyOfRange(0,cordXOffset) + cordX.toBytes32bit() + actBytes.copyOfRange(cordXOffset + 4,actBytes.count())
+        bytes = bytes.copyOfRange(0,cordYOffset) + cordY.toBytes32bit() + bytes.copyOfRange(cordYOffset + 4,bytes.count())
+        bytes = bytes.copyOfRange(0,cordXOffset) + cordX.toBytes32bit() + bytes.copyOfRange(cordXOffset + 4,bytes.count())
 
         if (rotation != null) {
 
             if (type == 11) {
-                actBytes = actBytes.copyOfRange(0,46) + rotation!!.toShort().toBytes16bit() + actBytes.copyOfRange(48,actBytes.count())
+                bytes = bytes.copyOfRange(0,46) + rotation!!.toShort().toBytes16bit() + bytes.copyOfRange(48,bytes.count())
                 return
             }
 
-            actBytes = actBytes.copyOfRange(0,64) + rotation!!.toShort().toBytes16bit() + actBytes.copyOfRange(66,actBytes.count())
-            actBytes = actBytes.copyOfRange(0,78) + rotation!!.toShort().toBytes16bit() + actBytes.copyOfRange(80,actBytes.count())
+            bytes = bytes.copyOfRange(0,64) + rotation!!.toShort().toBytes16bit() + bytes.copyOfRange(66,bytes.count())
+            bytes = bytes.copyOfRange(0,78) + rotation!!.toShort().toBytes16bit() + bytes.copyOfRange(80,bytes.count())
 
         }
 
@@ -212,7 +213,7 @@ class FCopCact(bytes: ByteArray) {
                     val index = chunk.index + (12 + (i * 8))
 
                     total.add(
-                        ActReference(actBytes.copyOfRange(index, index + 4).decodeToString().reversed(),getIntAt(index + 4))
+                        ActReference(bytes.copyOfRange(index, index + 4).decodeToString().reversed(),getIntAt(index + 4))
                     )
 
                 }
@@ -242,7 +243,7 @@ class FCopCact(bytes: ByteArray) {
             total += IffChunkHeader(
                 chunkIndex = chunkIndex,
                 index = i,
-                primaryHeader = ChunkHeader.valueOf(actBytes.copyOfRange(i, i + 4).decodeToString().reversed()),
+                primaryHeader = ChunkHeader.valueOf(bytes.copyOfRange(i, i + 4).decodeToString().reversed()),
                 chunkSize = getIntAt(i + 4)
             )
 
@@ -251,7 +252,7 @@ class FCopCact(bytes: ByteArray) {
         return total
     }
 
-    private fun createChunkOffsetList(id: ChunkHeader, data: ByteArray = actBytes): Array<Int> {
+    private fun createChunkOffsetList(id: ChunkHeader, data: ByteArray = bytes): Array<Int> {
 
         val index: MutableList<Int> = mutableListOf()
 
@@ -268,35 +269,6 @@ class FCopCact(bytes: ByteArray) {
         return index.toTypedArray()
     }
 
-    private fun getIntAt(inx: Int, data: ByteArray = actBytes): Int {
-
-        val bytes = data.copyOfRange(inx,inx + 4)
-
-        var result = 0
-        for (i in bytes.indices) {
-            result = result or (bytes[i].toInt() and 0xFF shl 8 * i)
-        }
-        return result
-    }
-
-    private fun getUShortAt(inx: Int, data: ByteArray = actBytes): Int {
-
-        val bytes = data.copyOfRange(inx,inx + 2)
-
-        var result = 0
-        for (i in bytes.indices) {
-            result = result or (bytes[i].toInt() and 0xFF shl 8 * i)
-        }
-        return result
-    }
-
-    private fun getShortAt(inx: Int, data: ByteArray = actBytes): Int {
-
-        val bytes = data.copyOfRange(inx,inx + 2)
-
-        return ByteBuffer.wrap(bytes).order(ByteOrder.LITTLE_ENDIAN).asShortBuffer()[0].toInt()
-
-    }
 
 }
 
