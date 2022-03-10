@@ -1,94 +1,103 @@
 package iff.data
 
+import iff.IffChunkHeader
+import iff.IffFile
 import iff.chunk.ChunkHeader
 import java.io.File
 
 
-//FIXME OLD BAD CODE
-class FCopCfun(dataFileName: String) {
+class FCopCfun(val bytes: ByteArray) {
 
-    private val funFile = File(dataFileName)
-    val funBytes = funFile.readBytes()
     val allIndexes = createDataList()
+
+    val funContents = parseFunContents()
 
     fun createDataTextList(){
 
-        val file: File = File(funFile.path + "chunklist.txt")
+        val file = File("output/CfunChunklist.txt")
 
-        var total:String = ""
+        var total = ""
 
-        var size = 0
-        val chunks = allIndexes.keys.count()
+        var lineLength = 0
 
-        for (i in allIndexes){
+        for (num in funContents) {
 
-            if (i.value[1] is Int) {
-                size += i.value[1] as Int
-            }
+            total += "$num "
+            lineLength += 1
 
-            val array = i.value
-            total += i.key.toString() + " "
-
-            var newLineCount = 2
-            for (item in array){
-                if (item != "null") {
-                    if (newLineCount == 5) {
-                        total += "\n"
-                        newLineCount = 0
-                    }
-                    total += item.toString() + " "
-                    newLineCount++
-                }
-            }
-            total += "\n"
-        }
-
-
-        file.writeText(chunkListHeader(size,chunks) + total)
-    }
-
-    private fun createChunkOffsetList(id: ChunkHeader, data: ByteArray = funBytes): Array<Int> {
-
-        val index: MutableList<Int> = mutableListOf()
-
-        for ((i, byte) in data.withIndex()){
-            if (byte == id.fourCC[0]){
-                if (data.copyOfRange(i,i+4).contentEquals(id.fourCC)){
-                    index.add(i)
-                }
+            if (lineLength == 5) {
+                lineLength = 0
+                total += "\n"
             }
 
         }
-        return index.toTypedArray()
+
+        file.writeText(total)
+
     }
 
-    private fun createDataList(): Map<Int, Array<Any>> {
+    private fun parseFunContents() : List<Int> {
+
+        val total = mutableListOf<Int>()
+
+        val funHeader = allIndexes.first { it.primaryHeader == ChunkHeader.tFUN }
+
+        val data = bytes.copyOfRange(funHeader.index + 12, funHeader.indexAfterSize)
+
+        for (i in data.indices step 4) {
+
+            total += getIntAt(i, data)
+
+        }
+
+        return total
+
+    }
+
+    private fun createDataList(): List<IffChunkHeader> {
 
         val totalIndexes = mutableListOf<Int>()
-        val finalMap: MutableMap<Int, Array<Any>> = mutableMapOf()
+        val total = mutableListOf<IffChunkHeader>()
 
-        totalIndexes += createChunkOffsetList(ChunkHeader.tFUN).toMutableList()
-        totalIndexes += createChunkOffsetList(ChunkHeader.tEXT).toMutableList()
+        totalIndexes += IffFile.createChunkOffsetList(ChunkHeader.tFUN, bytes).toMutableList()
+        totalIndexes += IffFile.createChunkOffsetList(ChunkHeader.tEXT, bytes).toMutableList()
 
         totalIndexes.sort()
 
         for (i in totalIndexes) {
 
-            if (funBytes.copyOfRange(i, i + 4).contentEquals(ChunkHeader.tFUN.fourCC)){
-                val size = getIntAt(i + 4)
-                val content = mutableListOf<Int>()
-                for (num in 1..(get32intCount(size) - 2)) {
-                    content.add(getIntAt((i + 4) + (num * 4)))
+            when {
+
+                bytes.copyOfRange(i, i + 4).contentEquals(ChunkHeader.tFUN.fourCC) -> {
+
+                    total += IffChunkHeader(
+                        chunkIndex = 0,
+                        index = i,
+                        primaryHeader = ChunkHeader.tFUN,
+                        chunkSize = getIntAt(i + 4)
+                    )
+
                 }
-                finalMap[i] = (mutableListOf<Any>("tFun", size) + content).toTypedArray()
+
+                bytes.copyOfRange(i, i + 4).contentEquals(ChunkHeader.tEXT.fourCC) -> {
+
+                    total += IffChunkHeader(
+                        chunkIndex = 0,
+                        index = i,
+                        primaryHeader = ChunkHeader.tEXT,
+                        chunkSize = getIntAt(i + 4)
+                    )
+
+                }
+
             }
 
         }
 
-        return finalMap
+        return total
     }
 
-    private fun getIntAt(inx: Int, data: ByteArray = funBytes): Int {
+    private fun getIntAt(inx: Int, data: ByteArray = bytes): Int {
 
         val bytes = data.copyOfRange(inx,inx + 4)
 
@@ -99,12 +108,5 @@ class FCopCfun(dataFileName: String) {
         return result
     }
 
-    private fun get32intCount(count: Int) : Int {
-        if (count % 4 != 0){
-            throw error("count not divisible by 4")
-        }
-        return count / 4
-    }
 
-    private fun chunkListHeader(size: Int, chunks: Int) = "size: $size, chunks: $chunks \n"
 }

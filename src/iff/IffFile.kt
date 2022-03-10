@@ -34,6 +34,27 @@ class IffFile(private var fileName: String, binaryData: ByteArray) {
          * The amount of data needed to filled, if normal data doesn't cut it, it'll need to be filled using FILL chunks
          */
         const val iffFileSectionSize = 24576
+
+        /**
+         * Method used for searching the [data] to find any fourCCs.
+         */
+        fun createChunkOffsetList(header: ChunkHeader, data: ByteArray): Array<Int> {
+
+            val index: MutableList<Int> = mutableListOf()
+
+            for ((i, byte) in data.withIndex()){
+                if (byte == header.fourCC[0]){
+                    try {
+                        if (data.copyOfRange(i, i + 4).contentEquals(header.fourCC)) {
+                            index.add(i)
+                        }
+                    } catch (e: IndexOutOfBoundsException) {  }
+                }
+
+            }
+            return index.toTypedArray()
+        }
+
     }
 
     /**
@@ -854,11 +875,11 @@ class IffFile(private var fileName: String, binaryData: ByteArray) {
         val totalIndexes = mutableListOf<Int>()
         val iffChunkHeaders = mutableListOf<IffChunkHeader>()
 
-        totalIndexes += createChunkOffsetList(ChunkHeader.CTRL).toMutableList()
-        totalIndexes += createChunkOffsetList(ChunkHeader.SHOC).toMutableList()
-        totalIndexes += createChunkOffsetList(ChunkHeader.FILL).toMutableList()
-        totalIndexes += createChunkOffsetList(ChunkHeader.SWVR).toMutableList()
-        totalIndexes += createChunkOffsetList(ChunkHeader.MSIC).toMutableList()
+        totalIndexes += createChunkOffsetList(ChunkHeader.CTRL, fileBytes).toMutableList()
+        totalIndexes += createChunkOffsetList(ChunkHeader.SHOC, fileBytes).toMutableList()
+        totalIndexes += createChunkOffsetList(ChunkHeader.FILL, fileBytes).toMutableList()
+        totalIndexes += createChunkOffsetList(ChunkHeader.SWVR, fileBytes).toMutableList()
+        totalIndexes += createChunkOffsetList(ChunkHeader.MSIC, fileBytes).toMutableList()
 
         totalIndexes.sort()
 
@@ -1047,25 +1068,6 @@ class IffFile(private var fileName: String, binaryData: ByteArray) {
         return fileName
     }
 
-    /**
-     * Method used for searching the [fileBytes] to find any fourCCs. Called at the start of [createAllPrimaryChunkOffsetList]
-     */
-    private fun createChunkOffsetList(header: ChunkHeader, data: ByteArray = fileBytes): Array<Int> {
-
-        val index: MutableList<Int> = mutableListOf()
-
-        for ((i, byte) in data.withIndex()){
-            if (byte == header.fourCC[0]){
-                try {
-                    if (data.copyOfRange(i, i + 4).contentEquals(header.fourCC)) {
-                        index.add(i)
-                    }
-                } catch (e: IndexOutOfBoundsException) {  }
-            }
-
-        }
-        return index.toTypedArray()
-    }
 
     // -UTILS-
 

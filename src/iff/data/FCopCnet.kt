@@ -1,9 +1,9 @@
 package iff.data
 
+import iff.toBytes16bit
 import java.io.File
 import java.nio.ByteBuffer
 import java.nio.ByteOrder.LITTLE_ENDIAN
-import java.nio.ShortBuffer
 
 
 class FCopCnet(var bytes: ByteArray) {
@@ -13,7 +13,7 @@ class FCopCnet(var bytes: ByteArray) {
         const val startOfNodesOffset: Int = 16
     }
 
-    var nodes = readNodes()
+    var nodes = parseNodes()
 
     fun createTextFile() {
 
@@ -21,10 +21,23 @@ class FCopCnet(var bytes: ByteArray) {
 
         for (node in nodes) {
 
-            for (number in node) {
-                total += number.toString()
-                total += " "
-            }
+            total += node.index.toString() + " : "
+
+            total += node.nextPointIndex.toString() + " "
+            total += node.x.toString() + " "
+            total += node.y.toString() + " "
+            total += node.isStartingPoint.toString() + " "
+
+            total += ": "
+
+            total += node.fullData[0]
+            total += " "
+            total += node.fullData[1]
+            total += " "
+            total += node.fullData[2]
+            total += " "
+            total += node.fullData[3]
+            total += " "
 
             total += "\n"
 
@@ -34,34 +47,57 @@ class FCopCnet(var bytes: ByteArray) {
 
     }
 
-    fun readNodes(): List<List<Int>> {
+    fun readNodes() {
 
-        val total = mutableListOf<List<Int>>()
+        var total = bytes.copyOfRange(0,16)
 
-        for (index in 16 until bytes.count() step 12) {
+        for (node in nodes) {
 
-            val currentList = mutableListOf<Int>()
+            if (node.nextPointIndex != null) {
 
-//            currentList += getUShortAt(index)
-//            currentList += getUShortAt(index + 2)
-//            currentList += getUShortAt(index + 4)
-//            currentList += getUShortAt(index + 6)
-//            currentList += getUShortAt(index + 8)
-//            currentList += getUShortAt(index + 10)
+                total += node.fullData.copyOfRange(0, 2)
+                total += ((node.nextPointIndex!! * 64) + 63).toShort().toBytes16bit()
 
-            currentList += getShortAt(index)
-            currentList += getShortAt(index + 2)
-            currentList += getShortAt(index + 4)
-            currentList += getShortAt(index + 6)
-            currentList += getShortAt(index + 8)
-            currentList += getShortAt(index + 10)
+            } else {
 
-//            currentList += getIntAt(index)
-//            currentList += getIntAt(index + 4)
-//            currentList += getIntAt(index + 8)
+                total += node.fullData.copyOfRange(0, 4)
+
+            }
 
 
-            total += currentList
+            total += byteArrayOf(0xC0.toByte(), 0xFF.toByte())
+            total += node.x.toShort().toBytes16bit()
+            total += node.y.toShort().toBytes16bit()
+            total += if (node.isStartingPoint) { byteArrayOf(1,0) } else { byteArrayOf(0,0) }
+
+        }
+
+        bytes = total
+
+    }
+
+    private fun parseNodes(): MutableList<CnetNode> {
+
+        val total = mutableListOf<CnetNode>()
+
+        for ((pointIndex, index) in (16 until bytes.count() step 12).withIndex()) {
+
+            val possibleNextPoint: Double = (getShortAt(index + 2) - 63.0) / 64.0
+            var point: Int? = null
+
+            if (possibleNextPoint % 1.0 == 0.0) {
+                point = possibleNextPoint.toInt()
+            }
+
+            total += CnetNode(
+                index = pointIndex,
+                nextPointIndex = point,
+                x = getShortAt(index + 6),
+                y = getShortAt(index + 8),
+                isStartingPoint = getShortAt(index + 10) == 1,
+                fullData = bytes.copyOfRange(index, index + 12)
+
+            )
 
         }
 
@@ -100,3 +136,12 @@ class FCopCnet(var bytes: ByteArray) {
     }
 
 }
+
+data class CnetNode(
+    var index: Int,
+    var nextPointIndex: Int?,
+    var x: Int,
+    var y: Int,
+    var isStartingPoint: Boolean,
+    var fullData: ByteArray
+)
