@@ -1,5 +1,6 @@
 package iff.data
 
+import iff.chunk.IffChunkHeader
 import iff.InvalidFileSizeException
 import iff.toBytes16bit
 import iff.toBytes32bit
@@ -8,7 +9,7 @@ import java.io.File
 /**
  * Very early state, do not use unless you know what you're doing
  */
-class FCopCtil(bytes: ByteArray, id: Int): FCopData(bytes, id) {
+class FCopCtil(bytes: ByteArray, id: Int, dataHeader: IffChunkHeader): FCopData(bytes, id, dataHeader) {
 
     companion object {
 

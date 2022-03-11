@@ -1,18 +1,13 @@
 package iff.data
 
-import iff.IffChunkHeader
-import iff.NoGivenDataException
+import iff.chunk.IffChunkHeader
 import iff.chunk.ChunkHeader
-import iff.chunk.IffFormatData
-import iff.chunk.IffFormatting
 import iff.toBytes16bit
 import iff.toBytes32bit
 import java.io.File
 import java.lang.IndexOutOfBoundsException
-import java.nio.ByteBuffer
-import java.nio.ByteOrder
 
-class FCopCact(bytes: ByteArray): FCopData(bytes, -1) {
+class FCopCact(bytes: ByteArray, dataHeader: IffChunkHeader): FCopData(bytes, -1, dataHeader) {
 
     companion object {
 
@@ -21,28 +16,6 @@ class FCopCact(bytes: ByteArray): FCopData(bytes, -1) {
         const val cordYOffset: Int = 16
         const val cordXOffset: Int = 24
         const val unknownDataOffset: Int = 28
-
-        fun createHeavyWeaponResupplyWithHeader(id: Int, positionX: Int, positionY: Int): ByteArray {
-
-            val header = IffFormatting.createBasicHeader(ChunkHeader.Csac,id, 2,144,1807,1775,107)
-
-            val shocChunk = ChunkHeader.SHOC.fourCC + 164.toBytes32bit() + IffFormatData.SHOCDataAfterSize.contents +
-                    ChunkHeader.SDAT.fourCC
-
-            val contents = ChunkHeader.tACT.fourCC + 68.toBytes32bit() + id.toBytes32bit() + 16.toBytes32bit() +
-                    positionY.toBytes32bit() + byteArrayOf(0x00,0x00,0x00,0x00) + positionX.toBytes32bit() +
-                    byteArrayOf(0x81.toByte(), 0x00,0x08,0x00
-                        ,0x00,0x00,0x00,0x00,0x00,0x00,0x05,0x00,0x00,0x00,0x00,0x00,0x00,0x01,0x01,0x00,
-                        0x51,0x00,0x33,0x03,0x33,0x03,0x00,0x08,0x00,0x00,0x63,0x00,0x20,0x00,0x00,0x03,
-                        0xFF.toByte(),0xFF.toByte(),0xCC.toByte(),0xEC.toByte()
-                    ) + ChunkHeader.aRSL.fourCC + 28.toBytes32bit() + id.toBytes32bit() + ChunkHeader.Cobj.fourCC + 24.toBytes32bit() +
-                    ChunkHeader.NULL.fourCC + 0.toBytes32bit() + ChunkHeader.tSAC.fourCC + 48.toBytes32bit() + id.toBytes32bit() +
-                    byteArrayOf(0x90.toByte(),0xE8.toByte(),0x01,0x00,0x00,0x00,0xFF.toByte(),0xFF.toByte(),0x00,0x00,
-                        0x00,0x00,0x00,0x00,0x00,0x00,0x00, 0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,
-                        0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00)
-
-            return header + shocChunk + contents
-        }
 
     }
 

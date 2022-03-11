@@ -1,16 +1,13 @@
 package iff.data
 
-import iff.InvalidFileFormatException
-import iff.NoGivenDataException
+import iff.*
 import iff.chunk.ChunkHeader
-import iff.toBytes16bit
-import iff.toBytes32bit
-import java.io.File
+import iff.chunk.IffChunkHeader
 
 /**
  * Object for working with Future Cop's music files
  */
-class FCopMusic(bytes: ByteArray, val musicFileName: String): FCopData(bytes, -1) {
+class FCopMusic(bytes: ByteArray, dataHeader: IffChunkHeader): FCopData(bytes, -1, dataHeader) {
 
     companion object {
 

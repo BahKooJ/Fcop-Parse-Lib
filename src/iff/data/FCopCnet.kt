@@ -1,12 +1,11 @@
 package iff.data
 
+import iff.chunk.IffChunkHeader
 import iff.toBytes16bit
 import java.io.File
-import java.nio.ByteBuffer
-import java.nio.ByteOrder.LITTLE_ENDIAN
 
 
-class FCopCnet(bytes: ByteArray, id: Int): FCopData(bytes, id) {
+class FCopCnet(bytes: ByteArray, id: Int, dataHeader: IffChunkHeader): FCopData(bytes, id, dataHeader) {
 
     companion object {
         const val numberOfNodesOffset: Int = 14

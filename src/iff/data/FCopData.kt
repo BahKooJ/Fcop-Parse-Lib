@@ -1,12 +1,16 @@
 package iff.data
 
+import iff.chunk.IffChunkHeader
 import java.nio.ByteBuffer
 import java.nio.ByteOrder
 
 
-open class FCopData(var bytes: ByteArray, id: Int) {
+open class FCopData(var bytes: ByteArray, id: Int, dataHeader: IffChunkHeader) {
 
     var id = id
+    protected set
+
+    var dataHeader = dataHeader
     protected set
 
     protected fun getIntAt(inx: Int, data: ByteArray = bytes): Int {

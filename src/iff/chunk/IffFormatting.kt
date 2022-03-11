@@ -18,13 +18,13 @@ class IffFormatting {
         const val msicHeaderSize = 28
         const val msicLoopNumberIncrease = 65536
 
-        fun createBasicHeader(chunkID: ChunkHeader, id: Int, type: Int, size: Int, ref1: Int, ref2: Int, ref3: Int): ByteArray {
 
-            return ChunkHeader.SHOC.fourCC + 60.toBytes32bit() + IffFormatData.SHOCDataAfterSize.contents + ChunkHeader.SHDR.fourCC +
-                    type.toBytes32bit() + chunkID.fourCC + id.toBytes32bit() + size.toBytes32bit() +
-                    ref1.toBytes32bit() + ref2.toBytes32bit() + ref3.toBytes32bit() + 1.toBytes32bit() +
-                    1.toBytes32bit() + byteArrayOf(0x00, 0x00, 0x43, 0x4F)
 
+        fun createSoundHeader(size: Int): ByteArray {
+
+            return ChunkHeader.SHOC.fourCC + IffFormatData.SHOCHeaderSoundData.contents + ChunkHeader.SHDR.fourCC +
+                    IffFormatData.DataAfterSHDRSound.contents + ChunkHeader.snds.fourCC + IffFormatData.SoundIDData.contents +
+                    size.toBytes32bit() + IffFormatData.HeaderDataAfterSizeSound.contents
 
         }
 
@@ -110,5 +110,7 @@ class IffFormatting {
             if (size % (chunkSize - 20) != 0 ){ total++ }
             return total
         }
+
     }
+
 }

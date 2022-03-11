@@ -1,16 +1,13 @@
 package iff.data
 
-import iff.InvalidFileFormatException
-import iff.NoGivenDataException
+import iff.*
 import iff.chunk.ChunkHeader
-import iff.toBytes16bit
-import iff.toBytes32bit
-import java.io.File
+import iff.chunk.IffChunkHeader
 
 /**
  * Object for working with Future Cop's sound files
  */
-class FCopSound(bytes: ByteArray, val soundFileName: String): FCopData(bytes, -1) {
+class FCopSound(bytes: ByteArray, dataHeader: IffChunkHeader): FCopData(bytes, -1, dataHeader) {
 
     companion object {
         const val sndsSampleRate = 22050

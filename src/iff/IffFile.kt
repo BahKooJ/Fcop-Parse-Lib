@@ -1,6 +1,7 @@
 package iff
 
 import iff.chunk.ChunkHeader
+import iff.chunk.IffChunkHeader
 import iff.chunk.IffFormatData
 import iff.chunk.IffFormatting
 import iff.data.FCopMusic
@@ -522,7 +523,7 @@ class IffFile(private var fileName: String, binaryData: ByteArray) {
             val fileName = dataHeader!!.dataDeclaration.toString() + dataHeader!!.dataID.toString() + getFileExtension(dataHeader!!.dataDeclaration!!.toString())
 
             val file = File(path + fileName)
-            file.writeBytes(formatFile(dataHeader!!.dataDeclaration!!, contents.toByteArray()))
+            file.writeBytes(contents.toByteArray())
 
             contents = mutableListOf()
 
@@ -617,7 +618,7 @@ class IffFile(private var fileName: String, binaryData: ByteArray) {
             val string = fileName + getFileExtension("snds")
 
             val file = File(path + string)
-            file.writeBytes(formatFile(ChunkHeader.snds, contents.toByteArray()))
+            file.writeBytes(contents.toByteArray())
 
             contents = mutableListOf()
         }
@@ -676,7 +677,7 @@ class IffFile(private var fileName: String, binaryData: ByteArray) {
                 break
             }
 
-            if (chunk.primaryHeader == ChunkHeader.snds && chunk.fileName == givenFileName) {
+            if (chunk.primaryHeader == ChunkHeader.SWVR && chunk.fileName == givenFileName) {
 
                 // Because music and snds use the same SWVR chunk, it checks the next chunks header to see if it's music or not
                 val possibleHeader = allPrimaryIndexes[chunk.chunkIndex + 1]
@@ -687,7 +688,7 @@ class IffFile(private var fileName: String, binaryData: ByteArray) {
                 locatedFile = true
 
                 fileName = chunk.fileName
-                chunkAmount = getChunkAmount(chunk.dataSize)
+                chunkAmount = getChunkAmount(possibleHeader.dataSize)
 
             } else {
                 if (chunk.secondaryHeader == ChunkHeader.SDAT && fileName != "" && chunkAmount != 0) {
@@ -698,9 +699,7 @@ class IffFile(private var fileName: String, binaryData: ByteArray) {
                 }
             }
         }
-        return try { formatFile(ChunkHeader.snds, contents.toByteArray()) } catch (e: InvalidFileFormatException) {
-            contents.toByteArray()
-        }
+        return contents.toByteArray()
 
     }
 
@@ -736,7 +735,7 @@ class IffFile(private var fileName: String, binaryData: ByteArray) {
         val string = musicName + getFileExtension("Music")
 
         val file = File(path + string)
-        file.writeBytes(formatFile(ChunkHeader.MSIC, contents.toByteArray()))
+        file.writeBytes(contents.toByteArray())
     }
 
     /**
@@ -755,22 +754,9 @@ class IffFile(private var fileName: String, binaryData: ByteArray) {
 
         }
 
-        return formatFile(ChunkHeader.MSIC, contents.toByteArray())
+        return contents.toByteArray()
     }
 
-    /**
-     * Called by various export methods to format the raw contents of a file
-     * User by nearly every export method
-     */
-    private fun formatFile(fileType: ChunkHeader, contents: ByteArray): ByteArray{
-
-        if (fileType == ChunkHeader.snds) {
-            return FCopSound(contents, "").formatFileAsBytes()
-        } else if (fileType == ChunkHeader.MSIC) {
-            return FCopMusic(contents, "").formatFileAsBytes()
-        }
-        return contents
-    }
 
     /**
      * Utility for writing a file name, called by any export method that writes to a path
@@ -951,16 +937,20 @@ class IffFile(private var fileName: String, binaryData: ByteArray) {
 
         if (readBytesByOffset(index + 16, index + 20).contentEquals(ChunkHeader.SHDR.fourCC)) {
 
+            val size = getIntAt(index + 4)
+
             return IffChunkHeader(
                 chunkIndex = chunkIndex,
                 index = index,
                 primaryHeader = ChunkHeader.SHOC,
-                chunkSize = getIntAt(index + 4),
+                chunkSize = size,
                 secondaryHeader = ChunkHeader.SHDR,
+                maybeHeaderDataType = getIntAt(index + 20),
                 dataDeclaration = ChunkHeader.valueOf(readBytesByOffset(index + 24, index + 28).decodeToString().reversed()),
                 dataID = getIntAt(index + 28),
                 dataSize = getIntAt(index + 32),
                 actReferences = null,
+                fullData = fileBytes.copyOfRange(index, index + size)
             )
 
         }
@@ -1001,13 +991,16 @@ class IffFile(private var fileName: String, binaryData: ByteArray) {
 
         if (readBytesByOffset(index + 16, index + 20).contentEquals(ChunkHeader.FILE.fourCC)) {
 
+            val size = getIntAt(index + 4)
+
             return IffChunkHeader(
                 chunkIndex = chunkIndex,
                 index = index,
                 primaryHeader = ChunkHeader.SWVR,
-                chunkSize = getIntAt(index + 4),
+                chunkSize = size,
                 secondaryHeader = ChunkHeader.FILE,
-                fileName = getSWVRStringName(readBytesByOffset(index + 20, index + 36))
+                fileName = getSWVRStringName(readBytesByOffset(index + 20, index + 36)),
+                fullData = fileBytes.copyOfRange(index, index + size)
             )
 
         }
@@ -1105,67 +1098,6 @@ class IffFile(private var fileName: String, binaryData: ByteArray) {
 
 }
 
-/**
- * Object for storing information about Future Cop's IFF chunks
- */
-data class IffChunkHeader(
-
-    /**
-     * Chunk index is the index of item in an array, UNRELATED TO THE FILE
-     */
-    val chunkIndex: Int,
-    /**
-     * Index or offset of the chunk
-     */
-    val index: Int,
-    /**
-     * The fourCC the chunk starts with
-     */
-    val primaryHeader: ChunkHeader,
-    /**
-     * The size of the chunk
-     */
-    val chunkSize: Int,
-    /**
-     * The fourCC describing what the chunk is
-     */
-    val secondaryHeader: ChunkHeader? = null,
-    /**
-     * If the [secondaryHeader] is [ChunkHeader.SHDR], then this is the fourCC for what data/file is stored
-     */
-    val dataDeclaration: ChunkHeader? = null,
-    /**
-     * The ID of the [dataDeclaration]
-     */
-    val dataID: Int = 0,
-    /**
-     * The size of [dataDeclaration]
-     */
-    val dataSize: Int = 0,
-    /**
-     * Refereces to Cacts in the header (unused until more is learned about Cacts)
-     */
-    val actReferences: Array<Int>? = null,
-    /**
-     * File name, if it has one
-     */
-    val fileName: String = "",
-
-    /**
-     * Number relating to music files
-     */
-    val musicLoopNumber: Int = 0,
-    val unknownMusicNumber: Int = 0,
-
-    // Used only by CTRL chunks
-    var controlMusicSize: Int = 0,
-    var controlDataSize: Int = 0,
-    var controlSoundSize: Int = 0
-) {
-    val indexAfterSize: Int
-        get() = index + chunkSize
-
-}
 
 /**
  * Extension for converting a Int, into a [ByteArray]

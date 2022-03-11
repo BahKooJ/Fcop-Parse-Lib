@@ -1,9 +1,10 @@
 package iff.data
 
+import iff.chunk.IffChunkHeader
 import iff.toBytes32bit
 import java.io.File
 
-class FCopCptc(bytes: ByteArray, id: Int): FCopData(bytes, id) {
+class FCopCptc(bytes: ByteArray, id: Int, dataHeader: IffChunkHeader): FCopData(bytes, id, dataHeader) {
 
     val width = getIntAt(16)
     val height = getIntAt(20)

@@ -1,12 +1,12 @@
 package iff.data
 
-import iff.IffChunkHeader
+import iff.chunk.IffChunkHeader
 import iff.IffFile
 import iff.chunk.ChunkHeader
 import java.io.File
 
 
-class FCopCfun(bytes: ByteArray, id: Int): FCopData(bytes, id) {
+class FCopCfun(bytes: ByteArray, id: Int, dataHeader: IffChunkHeader): FCopData(bytes, id, dataHeader) {
 
     val allIndexes = createDataList()
 

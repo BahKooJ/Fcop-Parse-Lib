@@ -3,13 +3,13 @@ package iff.data
 import iff.*
 import iff.chunk.ChunkHeader
 import java.io.File
-import java.io.FileNotFoundException
+import iff.chunk.IffChunkHeader
 
 
 /**
  * Object for working with Future Cop's Cbmp files
  */
-class FCopBitmap(bytes: ByteArray, id: Int): FCopData(bytes, id) {
+class FCopBitmap(bytes: ByteArray, id: Int, dataHeader: IffChunkHeader): FCopData(bytes, id, dataHeader) {
 
     companion object {
 
