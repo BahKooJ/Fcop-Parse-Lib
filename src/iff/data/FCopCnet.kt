@@ -48,7 +48,9 @@ class FCopCnet(bytes: ByteArray, id: Int, dataHeader: IffChunkHeader): FCopData(
 
     fun readNodes() {
 
-        var total = bytes.copyOfRange(0,16)
+        var total = bytes.copyOfRange(0,numberOfNodesOffset)
+
+        total += nodes.count().toShort().toBytes16bit()
 
         for (node in nodes) {
 
