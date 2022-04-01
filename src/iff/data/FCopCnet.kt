@@ -2,6 +2,7 @@ package iff.data
 
 import iff.chunk.IffChunkHeader
 import iff.toBytes16bit
+import iff.toBytes32bit
 import java.io.File
 
 
@@ -10,6 +11,7 @@ class FCopCnet(bytes: ByteArray, id: Int, dataHeader: IffChunkHeader): FCopData(
     companion object {
         const val numberOfNodesOffset: Int = 14
         const val startOfNodesOffset: Int = 16
+        const val nodeSize: Int = 12
     }
 
     var nodes = parseNodes()
@@ -42,7 +44,7 @@ class FCopCnet(bytes: ByteArray, id: Int, dataHeader: IffChunkHeader): FCopData(
 
         }
 
-        File("netNodeList.txt").writeText(total)
+        File("output/netNodeList$id.txt").writeText(total)
 
     }
 
@@ -75,13 +77,19 @@ class FCopCnet(bytes: ByteArray, id: Int, dataHeader: IffChunkHeader): FCopData(
 
         bytes = total
 
+        changeSize()
+
+    }
+
+    private fun changeSize() {
+        bytes = bytes.copyOfRange(0,4) + bytes.count().toBytes32bit() + bytes.copyOfRange(8,bytes.count())
     }
 
     private fun parseNodes(): MutableList<CnetNode> {
 
         val total = mutableListOf<CnetNode>()
 
-        for ((pointIndex, index) in (16 until bytes.count() step 12).withIndex()) {
+        for ((pointIndex, index) in (startOfNodesOffset until bytes.count() step nodeSize).withIndex()) {
 
             val possibleNextPoint: Double = (getShortAt(index + 2) - 63.0) / 64.0
             var point: Int? = null
