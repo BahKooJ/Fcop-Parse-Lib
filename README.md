@@ -1,4 +1,4 @@
-## THIS PROJECT IS NO LONGER BEING ACTIVLY WORKED ON. A NEW FUTURE COP PARSER IS NOW IN THE WORKS IN C#.
+## THIS PROJECT IS NO LONGER BEING ACTIVELY WORKED ON. A NEW FUTURE COP PARSER IS NOW IN THE WORKS IN C#.
 The reasoning for this is because I've decided to move away from JavaFX for the FCEditor in favor of Unity for the 3D map maker.
 https://github.com/BahKooJ/FCopParseLibSharp
 
