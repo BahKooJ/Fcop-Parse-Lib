@@ -1,3 +1,7 @@
+## THIS PROJECT IS NO LONGER BEING ACTIVLY WORKED ON. A NEW FUTURE COP PARSER IS NOW IN THE WORKS IN C#.
+The reasoning for this is because I've decided to move away from JavaFX for the FCEditor in favor of Unity for the 3D map maker.
+https://github.com/BahKooJ/FCopParseLibSharp
+
 # Fcop-Parse-Lib
 ## A Kotlin library for working with Future Cop's mission files
 This library parses Future Cop's IFF Files and the data contained inside it, turning them into readable objects.
